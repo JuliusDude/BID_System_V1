@@ -1,4 +1,3 @@
----
 
 ### **Project Title: SecureID-PoC (Proof of Concept)**
 **Core Idea:** A user receives a government-issued cryptographic stamp on their blockchain address. They can then use this stamp to prove their identity to any website without ever uploading their ID document.
