@@ -47,3 +47,17 @@ The function signatures needed for the frontend to interact with it.
 Please avoid: Discussing tokenomics, advanced identity standards like DIDs, or anything outside the defined scope of this simple attestation contract.
 
 First Task: Provide the complete code for Verification.sol based on the requirements above.
+
+
+
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract MyContract {
+    string public message = "Hello, Blockchain!";
+
+    function setMessage(string memory newMessage) public {
+        message = newMessage;
+    }
+}
