@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BID System - Government Issuer Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #1e3c72, #2a5298); 
+            color: white; 
+            padding: 30px; 
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 1.1em; }
+        .gov-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+        .content { padding: 40px; }
+        .section { 
+            margin: 30px 0; 
+            padding: 25px; 
+            border: 2px solid #f0f0f0; 
+            border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+        .section:hover { border-color: #2196F3; transform: translateY(-2px); }
+        .section h3 { color: #333; margin-bottom: 15px; font-size: 1.4em; }
+        .form-group { margin: 15px 0; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
+        .form-group input, .form-group textarea { 
+            width: 100%; 
+            padding: 12px; 
+            border: 2px solid #ddd; 
+            border-radius: 8px; 
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        .form-group input:focus, .form-group textarea:focus { 
+            outline: none; 
+            border-color: #2196F3; 
+            box-shadow: 0 0 0 3px rgba(33,150,243,0.1);
+        }
+        button { 
+            background: linear-gradient(135deg, #2196F3, #21CBF3); 
+            color: white; 
+            border: none; 
+            padding: 12px 25px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(33,150,243,0.4); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        button.danger { background: linear-gradient(135deg, #f44336, #ff7043); }
+        .status { 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 15px 0; 
+            font-weight: 600;
+        }
+        .success { background: #e8f5e8; color: #2e7d32; border: 1px solid #4caf50; }
+        .error { background: #ffebee; color: #c62828; border: 1px solid #f44336; }
+        .info { background: #e3f2fd; color: #1565c0; border: 1px solid #2196f3; }
+        .warning { background: #fff3e0; color: #ef6c00; border: 1px solid #ff9800; }
+        .wallet-info, .contract-info { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 10px; 
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .demo-addresses {
+            background: #f3e5f5;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+        .gas-estimate {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .loading { opacity: 0.7; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ Government BID System</h1>
+            <p>Blockchain Identity Verification - Official Issuer Portal</p>
+            <div class="gov-badge">🔐 AUTHORIZED GOVERNMENT ISSUER</div>
+        </div>
+
+        <div class="content">
+            <!-- Wallet Connection Section -->
+            <div class="section">
+                <h3>🦊 Wallet Connection</h3>
+                <div id="wallet-status" class="info">Connect your government wallet to begin</div>
+                <div class="wallet-info" id="wallet-info" style="display: none;">
+                    <strong>Government Account:</strong> <span id="account-address"></span><br>
+                    <strong>Balance:</strong> <span id="account-balance"></span> MATIC<br>
+                    <strong>Network:</strong> <span id="network-name"></span>
+                </div>
+                <button onclick="connectWallet()">Connect Government Wallet</button>
+                <button onclick="switchToAmoy()">Switch to Polygon Amoy</button>
+            </div>
+
+            <!-- Contract Setup Section -->
+            <div class="section">
+                <h3>📄 Contract Configuration</h3>
+                <div class="form-group">
+                    <label>BID Registry Contract Address:</label>
+                    <input type="text" id="contract-address" placeholder="0x..." value="">
+                    <small style="color: #666;">Enter your deployed BIDRegistry contract address</small>
+                </div>
+                <button onclick="loadContract()">Connect to Contract</button>
+                <button onclick="loadFromFile()">Auto-Load from Deployment</button>
+                
+                <div class="contract-info" id="contract-info" style="display: none;">
+                    <strong>Contract Status:</strong> <span id="contract-status"></span><br>
+                    <strong>You are Owner:</strong> <span id="is-owner"></span><br>
+                    <strong>You are Authorized Issuer:</strong> <span id="is-issuer"></span><br>
+                    <strong>Contract Address:</strong> <span id="connected-address"></span>
+                </div>
+            </div>
+
+            <!-- Issue BID Section -->
+            <div class="section">
+                <h3>✅ Issue Blockchain Identity Verification</h3>
+                <div class="form-group">
+                    <label>Citizen Wallet Address:</label>
+                    <input type="text" id="user-address" placeholder="0x742d35Cc6634C0532925a3b8D8C1C1b2c0b7c4d5">
+                </div>
+                <div class="form-group">
+                    <label>Citizen Information (will be hashed for privacy):</label>
+                    <input type="text" id="personal-info" placeholder="John Doe|GOVT123456|1990-01-01">
+                    <small style="color: #666;">Format: Full Name|Government ID|Date of Birth (YYYY-MM-DD)</small>
+                </div>
+                <div class="form-group">
+                    <label>Document Metadata Hash (IPFS/Optional):</label>
+                    <input type="text" id="metadata-hash" placeholder="QmExampleDocumentHash123...">
+                    <small style="color: #666;">IPFS hash of supporting documents (optional)</small>
+                </div>
+                
+                <div id="gas-estimation" class="gas-estimate" style="display: none;">
+                    <strong>⛽ Estimated Gas Cost:</strong> <span id="gas-cost"></span> MATIC
+                </div>
+                
+                <button onclick="estimateGas()">Estimate Gas Cost</button>
+                <button onclick="issueBID()" id="issue-btn">Issue Government Verification</button>
+                
+                <div class="demo-addresses">
+                    <strong>Demo Citizen Addresses for Testing:</strong><br>
+                    Alice: 0x742d35Cc6634C0532925a3b8D5dFcDaEec7BEA50<br>
+                    Bob: 0x8ba1f109551bD432803012645Ac136c7136BB53F<br>
+                    Charlie: 0xdD2FD4581271e230360230F9337D5c0430Bf44C0<br>
+                    <button onclick="fillDemoData()">Fill Demo Data</button>
+                </div>
+            </div>
+
+            <!-- Quick Verification Check -->
+            <div class="section">
+                <h3>🔍 Verification Status Checker</h3>
+                <div class="form-group">
+                    <label>Check Citizen Address:</label>
+                    <input type="text" id="check-address" placeholder="Enter wallet address to verify...">
+                </div>
+                <button onclick="checkVerification()">Check Verification Status</button>
+                <button onclick="revokeBID()" class="danger" id="revoke-btn" style="display: none;">Revoke Verification</button>
+                <div id="verification-result"></div>
+            </div>
+
+            <!-- Government Actions -->
+            <div class="section">
+                <h3>🏛️ Government Administration</h3>
+                <div class="form-group">
+                    <label>Add Authorized Issuer (Department/Agency):</label>
+                    <input type="text" id="new-issuer" placeholder="0x... (new department wallet)">
+                </div>
+                <button onclick="addIssuer()">Authorize New Issuer</button>
+                
+                <div class="info" style="margin-top: 15px;">
+                    <strong>Note:</strong> Only the contract owner can add new authorized issuers.
+                    This allows different government departments to issue verifications.
+                </div>
+            </div>
+
+            <!-- Transaction Status -->
+            <div id="transaction-status"></div>
+        </div>
+    </div>
+
+    <script>
+        // Contract ABI
+        const CONTRACT_ABI = [
+            "function issueBID(address user, bytes32 hashedPersonalInfo, string memory metadataHash) external",
+            "function isBIDValid(address user) external view returns (bool)",
+            "function getBID(address user) external view returns (tuple(bytes32 hashedPersonalInfo, address issuer, uint256 timestamp, bool isValid, string metadataHash))",
+            "function owner() external view returns (address)",
+            "function authorizedIssuers(address) external view returns (bool)",
+            "function addAuthorizedIssuer(address issuer) external",
+            "function revokeBID(address user) external",
+            "event BIDIssued(address indexed user, address indexed issuer, bytes32 hashedPersonalInfo, string metadataHash, uint256 timestamp)",
+            "event BIDRevoked(address indexed user, address indexed issuer, uint256 timestamp)"
+        ];
+
+        let provider;
+        let signer;
+        let contract;
+        let userAccount;
+        let currentCheckAddress;
+
+        // Auto-load contract from deployment file
+        async function loadFromFile() {
+            try {
+                const response = await fetch('./contract-info.json');
+                const contractInfo = await response.json();
+                
+                document.getElementById('contract-address').value = contractInfo.contractAddress;
+                showStatus(`📄 Contract info loaded! Deployed on block ${contractInfo.deploymentBlock}`, 'success');
+                
+                // Auto-load contract
+                await loadContract();
+                
+            } catch (error) {
+                console.error('Error loading contract info:', error);
+                showStatus('⚠️ No deployment file found. Please enter contract address manually.', 'warning');
+            }
+        }
+
+        // Connect to MetaMask
+        async function connectWallet() {
+            try {
+                if (typeof window.ethereum !== 'undefined') {
+                    provider = new ethers.BrowserProvider(window.ethereum);
+                    await provider.send("eth_requestAccounts", []);
+                    signer = await provider.getSigner();
+                    userAccount = await signer.getAddress();
+                    
+                    const balance = await provider.getBalance(userAccount);
+                    const network = await provider.getNetwork();
+                    
+                    // Check if on correct network
+                    if (Number(network.chainId) !== 80002) {
+                        document.getElementById('wallet-status').className = 'status warning';
+                        document.getElementById('wallet-status').textContent = '⚠️ Please switch to Polygon Amoy testnet';
+                        return;
+                    }
+                    
+                    document.getElementById('wallet-status').className = 'status success';
+                    document.getElementById('wallet-status').textContent = '✅ Government Wallet Connected!';
+                    
+                    document.getElementById('account-address').textContent = userAccount;
+                    document.getElementById('account-balance').textContent = Number(ethers.formatEther(balance)).toFixed(4);
+                    document.getElementById('network-name').textContent = network.name + ' (Chain ID: ' + network.chainId + ')';
+                    document.getElementById('wallet-info').style.display = 'block';
+                    
+                    // Try to auto-load contract
+                    await loadFromFile();
+                    
+                } else {
+                    document.getElementById('wallet-status').className = 'status error';
+                    document.getElementById('wallet-status').textContent = '❌ MetaMask not detected! Please install MetaMask browser extension.';
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('wallet-status').className = 'status error';
+                document.getElementById('wallet-status').textContent = '❌ Error connecting wallet: ' + error.message;
+            }
+        }
+
+        // Switch to Polygon Amoy testnet
+        async function switchToAmoy() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x13882' }], // 80002 in hex
+                });
+                setTimeout(() => location.reload(), 1000);
+            } catch (switchError) {
+                if (switchError.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: '0x13882',
+                                chainName: 'Polygon Amoy Testnet',
+                                nativeCurrency: {
+                                    name: 'MATIC',
+                                    symbol: 'MATIC',
+                                    decimals: 18
+                                },
+                                rpcUrls: ['https://rpc-amoy.polygon.technology/'],
+                                blockExplorerUrls: ['https://amoy.polygonscan.com/']
+                            }]
+                        });
+                        setTimeout(() => location.reload(), 1000);
+                    } catch (addError) {
+                        console.error('Error adding network:', addError);
+                        showStatus('❌ Failed to add Polygon Amoy network', 'error');
+                    }
+                }
+            }
+        }
+
+        // Load and connect to deployed contract
+        async function loadContract() {
+            try {
+                const contractAddress = document.getElementById('contract-address').value;
+                if (!contractAddress || !ethers.isAddress(contractAddress)) {
+                    showStatus('❌ Please enter a valid contract address', 'error');
+                    return;
+                }
+
+                contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
+                
+                // Verify it's actually a BIDRegistry contract
+                const owner = await contract.owner();
+                const isOwner = userAccount.toLowerCase() === owner.toLowerCase();
+                const isAuthorizedIssuer = await contract.authorizedIssuers(userAccount);
+                
+                document.getElementById('contract-status').textContent = '✅ Connected & Verified';
+                document.getElementById('is-owner').textContent = isOwner ? 'Yes 👑' : 'No';
+                document.getElementById('is-issuer').textContent = isAuthorizedIssuer ? 'Yes ✅' : 'No ❌';
+                document.getElementById('connected-address').textContent = contractAddress;
+                document.getElementById('contract-info').style.display = 'block';
+
+                if (!isAuthorizedIssuer) {
+                    showStatus('⚠️ Warning: Your account is not authorized to issue BIDs!', 'warning');
+                } else {
+                    showStatus('✅ Contract loaded! You can now issue government verifications.', 'success');
+                }
+                
+            } catch (error) {
+                console.error(error);
+                showStatus('❌ Error loading contract. Please check the address.', 'error');
+            }
+        }
+
+        // Estimate gas for BID issuance
+        async function estimateGas() {
+            try {
+                if (!contract) {
+                    showStatus('❌ Please connect to contract first', 'error');
+                    return;
+                }
+
+                const userAddress = document.getElementById('user-address').value;
+                const personalInfo = document.getElementById('personal-info').value;
+                const metadataHash = document.getElementById('metadata-hash').value || "QmDefaultHash";
+
+                if (!userAddress || !personalInfo) {
+                    showStatus('❌ Please fill in required fields first', 'error');
+                    return;
+                }
+
+                const hashedInfo = ethers.keccak256(ethers.toUtf8Bytes(personalInfo));
+                
+                const gasEstimate = await contract.issueBID.estimateGas(userAddress, hashedInfo, metadataHash);
+                const feeData = await provider.getFeeData();
+                const price = feeData.maxFeePerGas ?? feeData.gasPrice;
+                if (!price) throw new Error('Unable to fetch gas price');
+                const estimatedCost = gasEstimate * price;
+                document.getElementById('gas-cost').textContent = ethers.formatEther(estimatedCost);
+                document.getElementById('gas-estimation').style.display = 'block';
+                
+                showStatus('💰 Gas estimation complete!', 'success');
+                
+            } catch (error) {
+                console.error(error);
+                if (error.message.includes('BID already exists')) {
+                    showStatus('⚠️ This citizen already has a BID verification!', 'warning');
+                } else {
+                    showStatus('❌ Gas estimation failed: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // Issue BID to citizen
+        async function issueBID() {
+            try {
+                if (!contract) {
+                    showStatus('❌ Please connect to contract first', 'error');
+                    return;
+                }
+
+                const userAddress = document.getElementById('user-address').value;
+                const personalInfo = document.getElementById('personal-info').value;
+                const metadataHash = document.getElementById('metadata-hash').value || "QmDefaultGovHash";
+
+                if (!userAddress || !personalInfo) {
+                    showStatus('❌ Please fill in required fields', 'error');
+                    return;
+                }
+
+                if (!ethers.isAddress(userAddress)) {
+                    showStatus('❌ Invalid wallet address format', 'error');
+                    return;
+                }
+
+                // Hash the personal information
+                const hashedInfo = ethers.keccak256(ethers.toUtf8Bytes(personalInfo));
+                
+                // Disable button during transaction
+                document.getElementById('issue-btn').disabled = true;
+                document.getElementById('issue-btn').textContent = 'Processing...';
+                
+                showStatus('🔄 Issuing government verification... Please confirm in MetaMask', 'info');
+                
+                const tx = await contract.issueBID(userAddress, hashedInfo, metadataHash);
+                
+                showStatus('⏳ Transaction submitted. Waiting for blockchain confirmation...', 'info');
+                
+                const receipt = await tx.wait();
+                
+                showStatus(`✅ Government verification issued successfully!<br>
+                    📄 Transaction: <a href="https://amoy.polygonscan.com/tx/${receipt.hash}" target="_blank">${receipt.hash}</a><br>
+                    🏛️ Citizen ${userAddress} is now government-verified!`, 'success');
+                
+                // Clear form
+                document.getElementById('user-address').value = '';
+                document.getElementById('personal-info').value = '';
+                document.getElementById('metadata-hash').value = '';
+                document.getElementById('gas-estimation').style.display = 'none';
+                
+            } catch (error) {
+                console.error(error);
+                let errorMsg = 'Unknown error occurred';
+                
+                if (error.message.includes('BID already exists')) {
+                    errorMsg = 'This citizen already has a government verification!';
+                } else if (error.message.includes('Not an authorized issuer')) {
+                    errorMsg = 'Your account is not authorized to issue verifications!';
+                } else if (error.message.includes('user rejected')) {
+                    errorMsg = 'Transaction rejected by user';
+                } else if (error.message.includes('insufficient funds')) {
+                    errorMsg = 'Insufficient MATIC for gas fees';
+                } else {
+                    errorMsg = error.message;
+                }
+                
+                showStatus('❌ Error: ' + errorMsg, 'error');
+            } finally {
+                // Re-enable button
+                document.getElementById('issue-btn').disabled = false;
+                document.getElementById('issue-btn').textContent = 'Issue Government Verification';
+            }
+        }
+
+        // Check verification status
+        async function checkVerification() {
+            try {
+                if (!contract) {
+                    showStatus('❌ Please connect to contract first', 'error');
+                    return;
+                }
+
+                const checkAddress = document.getElementById('check-address').value;
+                if (!checkAddress || !ethers.isAddress(checkAddress)) {
+                    showStatus('❌ Please enter a valid address', 'error');
+                    return;
+                }
+
+                currentCheckAddress = checkAddress;
+                const isValid = await contract.isBIDValid(checkAddress);
+                
+                let resultHtml = '';
+                if (isValid) {
+                    // Get detailed information
+                    const bidData = await contract.getBID(checkAddress);
+                    const timestamp = new Date(Number(bidData.timestamp) * 1000);
+                    
+                    resultHtml = `
+                        <div class="status success">
+                            <strong>✅ GOVERNMENT VERIFIED CITIZEN</strong><br>
+                            <strong>Verified by:</strong> ${bidData.issuer}<br>
+                            <strong>Verification Date:</strong> ${timestamp.toLocaleString()}<br>
+                            <strong>Status:</strong> ${bidData.isValid ? 'Active ✅' : 'Revoked ❌'}<br>
+                            <strong>Document Hash:</strong> ${bidData.metadataHash}
+                        </div>
+                    `;
+                    
+                    // Show revoke button if valid
+                    document.getElementById('revoke-btn').style.display = bidData.isValid ? 'inline-block' : 'none';
+                } else {
+                    resultHtml = `
+                        <div class="status error">
+                            <strong>❌ NOT GOVERNMENT VERIFIED</strong><br>
+                            This citizen has no valid government verification on the blockchain.
+                        </div>
+                    `;
+                    document.getElementById('revoke-btn').style.display = 'none';
+                }
+                
+                document.getElementById('verification-result').innerHTML = resultHtml;
+                
+            } catch (error) {
+                console.error(error);
+                if (error.message.includes('BID not found')) {
+                    document.getElementById('verification-result').innerHTML = `
+                        <div class="status error">
+                            <strong>❌ NO VERIFICATION FOUND</strong><br>
+                            This address has never been verified.
+                        </div>
+                    `;
+                } else {
+                    showStatus('❌ Error checking verification: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // Revoke BID
+        async function revokeBID() {
+            try {
+                if (!currentCheckAddress) {
+                    showStatus('❌ No address selected for revocation', 'error');
+                    return;
+                }
+
+                if (!confirm(`Are you sure you want to revoke government verification for ${currentCheckAddress}?`)) {
+                    return;
+                }
+
+                showStatus('🔄 Revoking verification...', 'info');
+                
+                const tx = await contract.revokeBID(currentCheckAddress);
+                await tx.wait();
+                
+                showStatus('✅ Government verification revoked successfully!', 'success');
+                
+                // Refresh verification status
+                await checkVerification();
+                
+            } catch (error) {
+                console.error(error);
+                showStatus('❌ Error revoking verification: ' + error.message, 'error');
+            }
+        }
+
+        // Add authorized issuer
+        async function addIssuer() {
+            try {
+                const newIssuer = document.getElementById('new-issuer').value;
+                if (!newIssuer || !ethers.isAddress(newIssuer)) {
+                    showStatus('❌ Please enter a valid issuer address', 'error');
+                    return;
+                }
+
+                showStatus('🔄 Adding authorized issuer...', 'info');
+                
+                const tx = await contract.addAuthorizedIssuer(newIssuer);
+                await tx.wait();
+                
+                showStatus(`✅ New issuer authorized: ${newIssuer}`, 'success');
+                document.getElementById('new-issuer').value = '';
+                
+            } catch (error) {
+                console.error(error);
+                let errorMsg = error.message;
+                if (errorMsg.includes('Only owner')) {
+                    errorMsg = 'Only the contract owner can add new issuers!';
+                } else if (errorMsg.includes('already authorized')) {
+                    errorMsg = 'This address is already an authorized issuer!';
+                }
+                showStatus('❌ Error: ' + errorMsg, 'error');
+            }
+        }
+
+        // Fill demo data for testing
+        function fillDemoData() {
+            document.getElementById('user-address').value = '0x742d35Cc6634C0532925a3b8D8C1C1b2c0b7c4d5';
+            document.getElementById('personal-info').value = 'Alice Johnson|GOVT789123|1992-05-15';
+            document.getElementById('metadata-hash').value = 'QmDemoDocumentHash123ABC';
+        }
+
+        // Utility function to show status messages
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('transaction-status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+            
+            // Auto-hide success messages after 8 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                }, 8000);
+            }
+        }
+
+        // Auto-connect if wallet was previously connected
+        window.addEventListener('load', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                if (accounts.length > 0) {
+                    await connectWallet();
+                }
+            }
+        });
+
+        // Listen for account changes
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', function (accounts) {
+                if (accounts.length === 0) {
+                    location.reload();
+                } else {
+                    connectWallet();
+                }
+            });
+
+            window.ethereum.on('chainChanged', function (chainId) {
+                location.reload();
+            });
+        }
+    </script>
+</body>
+</html>
