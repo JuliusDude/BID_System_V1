@@ -6,7 +6,7 @@ A decentralized identity verification system that enables users to verify their 
 
 ## 🎯 Overview
 
-The BID System allows authorized issuers (such as government entities) to issue and manage digital identities on the blockchain. Instead of sharing sensitive personal documents, users can verify their identity through their blockchain wallets, providing enhanced privacy and security.
+The BID System allows authorized issuers to issue and manage digital identities on the blockchain. Instead of sharing sensitive personal documents, users can verify their identity through their blockchain wallets, providing enhanced privacy and security.
 
 ### Our Team
 #### ->[Julius](https://github.com/JuliusDude) ->[Abhishan](https://github.com/falconishere) ->[Nevan](https://github.com/NCRTHUNDER) ->[Shamith](https://github.com/shamithgowda7) ->[Tenzin]()
