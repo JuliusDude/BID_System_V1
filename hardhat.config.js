@@ -45,7 +45,18 @@ module.exports = {
       accounts: isValidPrivateKey ? [PRIVATE_KEY] : [],
       chainId: 80002,
       gasPrice: 30000000000, // 30 gwei
-      timeout: 60000, // 60 seconds timeout
+      timeout: 120000, // 2 minutes timeout for rate limit issues
+      // Add retry configuration for rate limits
+      retry: {
+        retries: 3,
+        delay: 2000, // 2 seconds between retries
+      },
+      // Add request configuration
+      http: {
+        timeout: 120000,
+        retries: 3,
+        retryDelay: 2000,
+      }
     }
   },
   etherscan: {

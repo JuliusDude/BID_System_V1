@@ -1,511 +1,368 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BID System - Verifier Dashboard</title>
+    <title>BID System - Identity Verification Terminal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        :root {
+            --bg-body: #02040a;
+            --primary: #10b981;
+            /* Emerald Green */
+            --primary-dim: rgba(16, 185, 129, 0.2);
+            --text-main: #e2e8f0;
+            --text-muted: #64748b;
+            --border: #1e293b;
+            --card-bg: #0f172a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
             min-height: 100vh;
-            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image:
+                linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
         }
-        .container { 
-            max-width: 900px; 
-            margin: 0 auto; 
-            background: white; 
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .header { 
-            background: linear-gradient(135deg, #00b09b, #96c93d); 
-            color: white; 
-            padding: 30px; 
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 40px 20px;
             text-align: center;
         }
-        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
-        .header p { opacity: 0.9; font-size: 1.1em; }
-        .content { padding: 40px; }
-        .section { 
-            margin: 30px 0; 
-            padding: 25px; 
-            border: 2px solid #f0f0f0; 
-            border-radius: 15px;
-            transition: all 0.3s ease;
+
+        .hero-section {
+            margin-bottom: 60px;
         }
-        .section:hover { border-color: #00b09b; transform: translateY(-2px); }
-        .section h3 { color: #333; margin-bottom: 15px; font-size: 1.4em; }
-        .form-group { margin: 15px 0; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
-        .form-group input { 
-            width: 100%; 
-            padding: 12px; 
-            border: 2px solid #ddd; 
-            border-radius: 8px; 
-            font-size: 16px;
-            transition: border-color 0.3s ease;
+
+        .hero-title {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        .form-group input:focus { 
-            outline: none; 
-            border-color: #00b09b; 
-            box-shadow: 0 0 0 3px rgba(0,176,155,0.1);
+
+        .hero-subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
         }
-        button { 
-            background: linear-gradient(135deg, #00b09b, #96c93d); 
-            color: white; 
-            border: none; 
-            padding: 12px 25px; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-size: 16px; 
-            font-weight: 600;
-            transition: all 0.3s ease;
-            margin: 10px 5px;
+
+        .scanner-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 0 50px -10px rgba(16, 185, 129, 0.1);
+            position: relative;
+            overflow: hidden;
         }
-        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,176,155,0.4); }
-        button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-        .status { 
-            padding: 15px; 
-            border-radius: 8px; 
-            margin: 15px 0; 
-            font-weight: 600;
+
+        /* Animated scan line */
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+            animation: scan 3s infinite linear;
+            display: none;
         }
-        .verified { background: #e8f5e8; color: #2e7d32; border: 1px solid #4caf50; }
-        .not-verified { background: #ffebee; color: #c62828; border: 1px solid #f44336; }
-        .info { background: #e3f2fd; color: #1565c0; border: 1px solid #2196f3; }
-        .warning { background: #fff3e0; color: #ef6c00; border: 1px solid #ff9800; }
-        .wallet-info { 
-            background: #f8f9fa; 
-            padding: 20px; 
-            border-radius: 10px; 
-            margin: 20px 0;
-            border-left: 4px solid #00b09b;
+
+        @keyframes scan {
+            0% {
+                top: 0;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
         }
-        .verification-card {
-            background: #f8f9fa;
-            border: 2px solid #e0e0e0;
-            border-radius: 15px;
-            padding: 20px;
-            margin: 20px 0;
-            transition: all 0.3s ease;
+
+        .input-group {
+            position: relative;
+            margin-bottom: 30px;
         }
-        .verification-card.verified {
-            border-color: #4caf50;
-            background: linear-gradient(135deg, #e8f5e8, #f1f8e9);
+
+        .main-input {
+            width: 100%;
+            background: #02040a;
+            border: 2px solid var(--border);
+            padding: 20px 25px;
+            border-radius: 16px;
+            color: white;
+            font-size: 1.2rem;
+            text-align: center;
+            transition: all 0.3s;
         }
-        .verification-card.not-verified {
-            border-color: #f44336;
-            background: linear-gradient(135deg, #ffebee, #fce4ec);
+
+        .main-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 30px -5px var(--primary-dim);
         }
-        .batch-section {
-            background: #f3e5f5;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
+
+        .action-btn {
+            background: var(--primary);
+            color: #02040a;
+            border: none;
+            padding: 18px 40px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
-        .address-list {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 10px;
+
+        .action-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px var(--primary);
+        }
+
+        .result-area {
+            margin-top: 40px;
+            min-height: 200px;
+            display: flex;
             align-items: center;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-            border-left: 4px solid #9c27b0;
+            justify-content: center;
         }
-        .demo-scenario {
-            background: linear-gradient(135deg, #e1bee7, #f8bbd9);
-            padding: 20px;
-            border-radius: 15px;
-            margin: 20px 0;
-            border: 2px solid #9c27b0;
+
+        .id-card {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .id-card.valid {
+            border-color: var(--primary);
+        }
+
+        .id-card.invalid {
+            border-color: #ef4444;
+        }
+
+        .id-status-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: var(--primary);
+            color: black;
+            font-weight: 700;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+
+        .id-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 5px;
+        }
+
+        .id-value {
+            font-size: 1.1rem;
+            font-family: monospace;
+            margin-bottom: 20px;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .wallet-bar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .connect-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
         }
     </style>
 </head>
+
 <body>
+    <div class="wallet-bar">
+        <span id="wallet-status">Not Connected</span>
+        <a onclick="connectWallet()" class="connect-link">Connect Wallet</a>
+    </div>
+
     <div class="container">
-        <div class="header">
-            <h1>🔍 BID Verifier</h1>
-            <p>Verification Dashboard - Check Identity Without Storing Documents</p>
+        <div class="hero-section">
+            <h1 class="hero-title">Identity Scanner</h1>
+            <p class="hero-subtitle">Decentralized Verification Terminal</p>
         </div>
 
-        <div class="content">
-            <!-- Wallet Connection Section -->
-            <div class="section">
-                <h3>🦊 Connect Wallet</h3>
-                <div id="wallet-status" class="info">Connect your wallet to start verifying identities</div>
-                <div class="wallet-info" id="wallet-info" style="display: none;">
-                    <strong>Connected Account:</strong> <span id="account-address"></span><br>
-                    <strong>Network:</strong> <span id="network-name"></span><br>
-                    <strong>Role:</strong> <span id="user-role">Identity Verifier</span>
-                </div>
-                <button onclick="connectWallet()">Connect Wallet</button>
-                <button onclick="switchToAmoy()">Switch to Polygon Amoy</button>
+        <div class="scanner-card">
+            <div class="scan-line" id="scanflow"></div>
+
+            <!-- Connection Check -->
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="contract-address" placeholder="Contract Address (0x...)"
+                    style="background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--text-muted); width: 100%; text-align: center; font-size: 0.9rem; padding: 10px;">
+                <button onclick="loadContract()"
+                    style="margin-top: 10px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 5px 15px; border-radius: 20px; cursor: pointer;">Set
+                    Contract</button>
             </div>
 
-            <!-- Contract Connection -->
-            <div class="section">
-                <h3>📄 Contract Connection</h3>
-                <div class="form-group">
-                    <label>BID Contract Address:</label>
-                    <input type="text" id="contract-address" placeholder="Paste deployed contract address here">
-                    <small style="color: #666;">Get this from your deployment or Remix IDE</small>
-                </div>
-                <button onclick="loadContract()">Connect to Contract</button>
-                <div id="contract-status"></div>
+            <div class="input-group">
+                <input type="text" class="main-input" id="verify-address" placeholder="Scan or Enter Wallet Address">
             </div>
 
-            <!-- Demo Scenario -->
-            <div class="demo-scenario">
-                <h3>🎯 Demo Scenario</h3>
-                <p><strong>Imagine you're:</strong> A bank, employer, or service provider who needs to verify someone's identity</p>
-                <p><strong>Traditional way:</strong> Ask user to upload ID documents (security risk!)</p>
-                <p><strong>BID way:</strong> Just check their wallet address on blockchain (no documents needed!)</p>
-            </div>
+            <button class="action-btn" onclick="verifySingleUser()">Verify Identity</button>
 
-            <!-- Single Verification Check -->
-            <div class="section">
-                <h3>🔍 Verify Single Identity</h3>
-                <div class="form-group">
-                    <label>User Wallet Address to Verify:</label>
-                    <input type="text" id="verify-address" placeholder="0x...">
-                </div>
-                <button onclick="verifySingleUser()">🔍 Check Verification Status</button>
-                <div id="single-verification-result"></div>
-            </div>
-
-            <!-- Batch Verification -->
-            <div class="section">
-                <h3>📊 Batch Verification (Multiple Users)</h3>
-                <div class="batch-section">
-                    <h4>Test Multiple Addresses at Once:</h4>
-                    <div id="batch-addresses">
-                        <div class="address-list">
-                            <input type="text" placeholder="0x742d35Cc6634C0532925a3b8D8C1C1b2c0b7c4d5" class="batch-address">
-                            <button onclick="removeBatchAddress(this)">Remove</button>
-                        </div>
-                    </div>
-                    <button onclick="addBatchAddress()">+ Add Address</button>
-                    <button onclick="verifyBatchUsers()">🔍 Check All Addresses</button>
-                </div>
-                <div id="batch-verification-results"></div>
-            </div>
-
-            <!-- Quick Demo Addresses -->
-            <div class="section">
-                <h3>⚡ Quick Demo</h3>
-                <p>Use these pre-filled addresses for testing:</p>
-                <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; margin: 15px 0;">
-                    <input type="text" value="0x742d35Cc6634C0532925a3b8D5dFcDaEec7BEA50" readonly>
-                    <button onclick="quickCheck(this.previousElementSibling.value)">Quick Check</button>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; margin: 15px 0;">
-                    <input type="text" value="0x8ba1f109551bD432803012645Ac136c7136BB53F" readonly>
-                    <button onclick="quickCheck(this.previousElementSibling.value)">Quick Check</button>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; margin: 15px 0;">
-                    <input type="text" value="0xdD2FD4581271e230360230F9337D5c0430Bf44C0" readonly>
-                    <button onclick="quickCheck(this.previousElementSibling.value)">Quick Check</button>
+            <div class="result-area" id="single-verification-result">
+                <div style="color: var(--text-muted); font-style: italic;">
+                    Waiting for input...
                 </div>
             </div>
 
-            <!-- Transaction Status -->
-            <div id="transaction-status"></div>
+            <!-- Demo Links -->
+            <div style="margin-top: 30px; display: flex; gap: 10px; justify-content: center;">
+                <button onclick="quickCheck('0x742d35Cc6634C0532925a3b8D5dFcDaEec7BEA50')"
+                    style="background:transparent; border:1px solid var(--border); color: var(--text-muted); padding: 5px 10px; border-radius: 5px; cursor: pointer;">Demo
+                    Alice</button>
+                <button onclick="quickCheck('0x8ba1f109551bD432803012645Ac136c7136BB53F')"
+                    style="background:transparent; border:1px solid var(--border); color: var(--text-muted); padding: 5px 10px; border-radius: 5px; cursor: pointer;">Demo
+                    Bob</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Contract ABI for verifier functions
         const CONTRACT_ABI = [
             "function isBIDValid(address user) external view returns (bool)",
             "function getBID(address user) external view returns (tuple(bytes32 hashedPersonalInfo, address issuer, uint256 timestamp, bool isValid, string metadataHash))",
-            "function owner() external view returns (address)",
-            "function authorizedIssuers(address) external view returns (bool)"
         ];
 
-        let provider;
-        let signer;
-        let contract;
-        let userAccount;
+        let provider, contract;
 
-        // Connect to MetaMask
         async function connectWallet() {
-            try {
-                if (typeof window.ethereum !== 'undefined') {
-                    provider = new ethers.BrowserProvider(window.ethereum);
-                    await provider.send("eth_requestAccounts", []);
-                    signer = await provider.getSigner();
-                    userAccount = await signer.getAddress();
-                    
-                    const network = await provider.getNetwork();
-                    
-                    document.getElementById('wallet-status').className = 'status verified';
-                    document.getElementById('wallet-status').textContent = '✅ Wallet Connected - Ready to Verify Identities!';
-                    
-                    document.getElementById('account-address').textContent = userAccount;
-                    document.getElementById('network-name').textContent = network.name + ' (Chain ID: ' + network.chainId + ')';
-                    document.getElementById('wallet-info').style.display = 'block';
-                    
-                } else {
-                    showStatus('❌ MetaMask not found! Please install MetaMask to verify identities.', 'not-verified');
-                }
-            } catch (error) {
-                console.error(error);
-                showStatus('❌ Error connecting wallet: ' + error.message, 'not-verified');
+            if (window.ethereum) {
+                provider = new ethers.BrowserProvider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                document.getElementById('wallet-status').innerText = 'Connected';
+                document.getElementById('wallet-status').style.color = '#10b981';
             }
         }
 
-        // Switch to Polygon Amoy testnet
-        async function switchToAmoy() {
-            try {
-                await window.ethereum.request({
-                    method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: '0x13882' }], // 80002 in hex
-                });
-            } catch (switchError) {
-                if (switchError.code === 4902) {
-                    try {
-                        await window.ethereum.request({
-                            method: 'wallet_addEthereumChain',
-                            params: [{
-                                chainId: '0x13882',
-                                chainName: 'Polygon Amoy Testnet',
-                                nativeCurrency: {
-                                    name: 'MATIC',
-                                    symbol: 'MATIC',
-                                    decimals: 18
-                                },
-                                rpcUrls: ['https://rpc-amoy.polygon.technology/'],
-                                blockExplorerUrls: ['https://amoy.polygonscan.com/']
-                            }]
-                        });
-                    } catch (addError) {
-                        console.error('Error adding network:', addError);
-                    }
-                }
-            }
-        }
-
-        // Load contract
         async function loadContract() {
-            try {
-                const contractAddress = document.getElementById('contract-address').value;
-                if (!contractAddress) {
-                    alert('Please enter contract address');
-                    return;
-                }
-
-                // Create read-only contract instance (verifiers don't need to sign transactions)
-                contract = new ethers.Contract(contractAddress, CONTRACT_ABI, provider);
-                
-                showStatus('✅ Connected to BID Registry! Ready to verify identities.', 'verified');
-                
-            } catch (error) {
-                console.error(error);
-                showStatus('❌ Error connecting to contract: ' + error.message, 'not-verified');
+            const addr = document.getElementById('contract-address').value;
+            if (addr && provider) {
+                contract = new ethers.Contract(addr, CONTRACT_ABI, provider);
+                alert('Contract Set');
             }
         }
 
-        // Verify single user
         async function verifySingleUser() {
-            try {
-                if (!contract) {
-                    alert('Please connect to contract first');
-                    return;
-                }
+            const addr = document.getElementById('verify-address').value;
+            if (!addr || !contract) return alert('Check address or contract connection');
 
-                const userAddress = document.getElementById('verify-address').value;
-                if (!userAddress) {
-                    alert('Please enter user address');
-                    return;
-                }
+            // Animation
+            document.getElementById('scanflow').style.display = 'block';
+            document.getElementById('single-verification-result').innerHTML = 'Scanning Blockchain...';
 
-                showStatus('🔄 Checking blockchain for verification...', 'info');
+            setTimeout(async () => {
+                try {
+                    const isValid = await contract.isBIDValid(addr);
+                    const resultDiv = document.getElementById('single-verification-result');
 
-                const isValid = await contract.isBIDValid(userAddress);
-                
-                let resultHtml = '';
-                
-                if (isValid) {
-                    try {
-                        const bidData = await contract.getBID(userAddress);
-                        const timestamp = new Date(Number(bidData.timestamp) * 1000);
-                        
-                        resultHtml = `
-                            <div class="verification-card verified">
-                                <h4 style="color: #2e7d32; margin-bottom: 15px;">✅ IDENTITY VERIFIED</h4>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 14px;">
-                                    <div>
-                                        <strong>Verified By:</strong><br>
-                                        <code style="background: #e8f5e8; padding: 5px; border-radius: 4px;">${bidData.issuer}</code>
-                                    </div>
-                                    <div>
-                                        <strong>Verification Date:</strong><br>
-                                        ${timestamp.toLocaleDateString()} at ${timestamp.toLocaleTimeString()}
-                                    </div>
-                                    <div>
-                                        <strong>Status:</strong><br>
-                                        <span style="color: #2e7d32;">✅ Active & Valid</span>
-                                    </div>
-                                    <div>
-                                        <strong>Metadata:</strong><br>
-                                        ${bidData.metadataHash || 'None'}
-                                    </div>
-                                </div>
-                                <div style="margin-top: 15px; padding: 10px; background: rgba(46,125,50,0.1); border-radius: 8px;">
-                                    <strong>🔒 Privacy Note:</strong> Only verification status is stored on blockchain. No personal documents or sensitive data.
-                                </div>
+                    if (isValid) {
+                        const data = await contract.getBID(addr);
+                        resultDiv.innerHTML = `
+                            <div class="id-card valid">
+                                <div class="id-status-badge">Verified</div>
+                                <div class="id-label">Citizen Address</div>
+                                <div class="id-value">${addr}</div>
+                                <div class="id-label">Issuer Authority</div>
+                                <div class="id-value">${data.issuer}</div>
+                                <div class="id-label">Verification Timestamp</div>
+                                <div class="id-value">${new Date(Number(data.timestamp) * 1000).toLocaleString()}</div>
                             </div>
                         `;
-                    } catch (error) {
-                        resultHtml = `
-                            <div class="verification-card verified">
-                                <h4 style="color: #2e7d32;">✅ IDENTITY VERIFIED</h4>
-                                <p>This user has valid BID verification, but details are not accessible from your current role.</p>
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="id-card invalid" style="border-color: #ef4444;">
+                                <div class="id-status-badge" style="background: #ef4444; color: white;">Not Verified</div>
+                                <p style="color: #ef4444; margin-top: 10px;">No valid identity found for this address.</p>
                             </div>
                         `;
                     }
-                } else {
-                    resultHtml = `
-                        <div class="verification-card not-verified">
-                            <h4 style="color: #c62828; margin-bottom: 15px;">❌ IDENTITY NOT VERIFIED</h4>
-                            <p><strong>This wallet address has no valid BID verification.</strong></p>
-                            <div style="margin-top: 15px; padding: 15px; background: rgba(198,40,40,0.1); border-radius: 8px;">
-                                <strong>⚠️ Security Warning:</strong><br>
-                                • This user has not been verified by any authorized issuer<br>
-                                • Do not proceed with identity-sensitive operations<br>
-                                • Recommend user to get verified through proper channels
-                            </div>
-                        </div>
-                    `;
+                } catch (e) {
+                    console.error(e);
+                    document.getElementById('single-verification-result').innerHTML = 'Error searching chain.';
                 }
-                
-                document.getElementById('single-verification-result').innerHTML = resultHtml;
-                
-            } catch (error) {
-                console.error(error);
-                showStatus('❌ Error during verification: ' + error.message, 'not-verified');
-            }
+                document.getElementById('scanflow').style.display = 'none';
+            }, 1000); // Fake delay for scanning effect
         }
 
-        // Quick check function for demo buttons
-        async function quickCheck(address) {
-            document.getElementById('verify-address').value = address;
-            await verifySingleUser();
-        }
-
-        // Add address to batch verification
-        function addBatchAddress() {
-            const batchContainer = document.getElementById('batch-addresses');
-            const newAddressDiv = document.createElement('div');
-            newAddressDiv.className = 'address-list';
-            newAddressDiv.innerHTML = `
-                <input type="text" placeholder="0x..." class="batch-address">
-                <button onclick="removeBatchAddress(this)">Remove</button>
-            `;
-            batchContainer.appendChild(newAddressDiv);
-        }
-
-        // Remove address from batch
-        function removeBatchAddress(button) {
-            button.parentElement.remove();
-        }
-
-        // Verify multiple users at once
-        async function verifyBatchUsers() {
-            try {
-                if (!contract) {
-                    alert('Please connect to contract first');
-                    return;
-                }
-
-                const addressInputs = document.querySelectorAll('.batch-address');
-                const addresses = Array.from(addressInputs)
-                    .map(input => input.value.trim())
-                    .filter(addr => addr.length > 0);
-
-                if (addresses.length === 0) {
-                    alert('Please enter at least one address');
-                    return;
-                }
-
-                showStatus(`🔄 Checking ${addresses.length} addresses on blockchain...`, 'info');
-
-                let resultsHtml = '<h4>📊 Batch Verification Results:</h4>';
-                
-                for (let i = 0; i < addresses.length; i++) {
-                    const address = addresses[i];
-                    try {
-                        const isValid = await contract.isBIDValid(address);
-                        const status = isValid ? '✅ VERIFIED' : '❌ NOT VERIFIED';
-                        const statusClass = isValid ? 'verified' : 'not-verified';
-                        
-                        resultsHtml += `
-                            <div class="verification-card ${statusClass}" style="margin: 10px 0; padding: 15px;">
-                                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px; align-items: center;">
-                                    <div>
-                                        <strong>Address:</strong> <code>${address}</code>
-                                    </div>
-                                    <div>
-                                        <strong>${status}</strong>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    } catch (error) {
-                        resultsHtml += `
-                            <div class="verification-card not-verified" style="margin: 10px 0; padding: 15px;">
-                                <strong>Address:</strong> <code>${address}</code><br>
-                                <strong>❌ ERROR:</strong> ${error.message}
-                            </div>
-                        `;
-                    }
-                }
-
-                document.getElementById('batch-verification-results').innerHTML = resultsHtml;
-                showStatus('✅ Batch verification complete!', 'verified');
-                
-            } catch (error) {
-                console.error(error);
-                showStatus('❌ Batch verification failed: ' + error.message, 'not-verified');
-            }
-        }
-
-        // Utility function to show status messages
-        function showStatus(message, type) {
-            const statusDiv = document.getElementById('transaction-status');
-            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
-        }
-
-        // Auto-connect if wallet was previously connected
-        window.addEventListener('load', async () => {
-            if (typeof window.ethereum !== 'undefined') {
-                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                if (accounts.length > 0) {
-                    connectWallet();
-                }
-            }
-        });
-
-        // Listen for account/network changes
-        if (window.ethereum) {
-            window.ethereum.on('accountsChanged', function (accounts) {
-                if (accounts.length === 0) {
-                    location.reload();
-                } else {
-                    connectWallet();
-                }
-            });
-
-            window.ethereum.on('chainChanged', function (chainId) {
-                location.reload();
-            });
+        function quickCheck(addr) {
+            document.getElementById('verify-address').value = addr;
+            verifySingleUser();
         }
     </script>
 </body>
+
 </html>

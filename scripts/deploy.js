@@ -58,7 +58,7 @@ async function main() {
   console.log("🧪 Testing basic functionality...");
   
   // Generate test data
-  const testUserAddress = "0x742d35Cc6634C0532925a3b8D8C1C1b2c0b7c4d5";
+  const testUserAddress = "0x742d35Cc6634C0532925a3b8D5dFcDaEec7BEA50"; // Fixed checksum
   const testHash = ethers.keccak256(ethers.toUtf8Bytes("John Doe|12345|1990-01-01"));
   const testMetadata = "QmTestHash123ABCDemoIPFSHash"; // IPFS hash simulation
   
@@ -84,6 +84,17 @@ async function main() {
     
   } catch (error) {
     console.log("⚠️  Test failed:", error.message);
+    
+    // Check for specific error types
+    if (error.message.includes('Rate limit exceeded') || error.code === -32029) {
+      console.log("💡 Rate limit exceeded. This is normal for free RPC endpoints.");
+      console.log("   The contract was deployed successfully, but testing failed due to rate limits.");
+      console.log("   You can test manually using the frontend interface.");
+    } else if (error.message.includes('bad address checksum')) {
+      console.log("💡 Address checksum error. This has been fixed in the latest version.");
+    } else {
+      console.log("💡 This might be a temporary network issue. Try running the test again.");
+    }
   }
 
   console.log("");

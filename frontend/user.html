@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BID System - User Portal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0b0c15;
+            --bg-panel: #151621;
+            --bg-card: #1c1d2e;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --accent: #06b6d4;
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --border: #2d2f45;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: var(--bg-panel);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid var(--border);
+            margin-bottom: 30px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .status-badge.verified {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-badge.revoked {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            font-size: 1rem;
+        }
+
+        .btn:hover {
+            background: #2563eb;
+            box-shadow: 0 0 20px var(--primary-glow);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #qrcode-container {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            display: inline-block;
+            margin: 20px auto;
+            text-align: center;
+        }
+
+        #qrcode {
+            margin: 0 auto;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 15px;
+            margin: 20px 0;
+            font-size: 0.95rem;
+        }
+
+        .info-label {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .info-value {
+            color: var(--text-main);
+            word-break: break-all;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .form-input {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .status-toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--bg-panel);
+            padding: 16px 24px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.3s ease-out;
+            max-width: 400px;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .center {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 My Digital Identity</h1>
+            <p>View your BID status, generate QR code, and create age proofs</p>
+        </div>
+
+        <!-- Wallet Connection -->
+        <div class="card">
+            <h3>Connect Your Wallet</h3>
+            <div id="wallet-status">
+                <p style="margin-bottom: 15px; color: var(--text-muted);">Connect your wallet to view your digital
+                    identity</p>
+                <button class="btn" onclick="connectWallet()">Connect Wallet</button>
+            </div>
+            <div id="wallet-info" class="hidden">
+                <div class="info-grid">
+                    <div class="info-label">Address:</div>
+                    <div class="info-value" id="user-address"></div>
+                    <div class="info-label">Network:</div>
+                    <div class="info-value" id="network-name"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BID Status -->
+        <div class="card hidden" id="bid-status-card">
+            <h3>Your BID Status</h3>
+            <div id="bid-status-content"></div>
+        </div>
+
+        <!-- QR Code Generation -->
+        <div class="card hidden" id="qr-card">
+            <h3>Your Identity QR Code</h3>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Share this QR code with verifiers to check your
+                identity</p>
+            <div class="center">
+                <div id="qrcode-container" class="hidden">
+                    <div id="qrcode"></div>
+                    <p style="margin-top: 10px; color: #333; font-size: 0.85rem;">Scan to verify identity</p>
+                </div>
+                <button class="btn" onclick="generateQRCode()">Generate QR Code</button>
+                <button class="btn btn-outline" style="margin-top: 10px;" onclick="downloadQRCode()" id="download-btn"
+                    class="hidden">Download QR Code</button>
+            </div>
+        </div>
+
+        <!-- Age Proof Generation (ZKP) -->
+        <div class="card hidden" id="zkp-card">
+            <h3>Generate Age Proof</h3>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Prove you're 18+ without revealing your exact age
+            </p>
+
+            <div class="form-group">
+                <label class="form-label">Your Age</label>
+                <input type="number" id="age-input" class="form-input" placeholder="Enter your age" min="1" max="150">
+                <small style="color: var(--text-muted); font-size: 0.8rem;">This is used to generate the proof. It must
+                    match the age you registered with.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Secret Nonce (generated during registration)</label>
+                <input type="text" id="nonce-input" class="form-input" placeholder="Enter your nonce (bytes32)">
+                <small style="color: var(--text-muted); font-size: 0.8rem;">This was generated when your BID was issued.
+                    Keep it secret!</small>
+            </div>
+
+            <div id="age-proof-result" class="hidden" style="margin: 20px 0;"></div>
+
+            <button class="btn" onclick="generateAgeProof()">Generate Age >= 18 Proof</button>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        let provider, signer, contract, userAccount;
+        let contractAddress = '';
+
+        const CONTRACT_ABI = [
+            "function getBID(address user) external view returns (tuple(bytes32 hashedPersonalInfo, address issuer, uint256 timestamp, bool isValid, string metadataHash, bytes32 ageCommitment, uint256 revocationTimestamp))",
+            "function isBIDValid(address user) external view returns (bool)",
+            "function verifyIsAdult(address user, uint256 age, bytes32 nonce) external returns (bool)"
+        ];
+
+        function showToast(message, type) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'status-toast';
+
+            let color = 'var(--primary)';
+            if (type === 'success') color = 'var(--success)';
+            if (type === 'error') color = 'var(--error)';
+            if (type === 'warning') color = 'var(--warning)';
+
+            toast.style.borderLeftColor = color;
+            toast.innerHTML = `<div style="font-weight:600; color:${color}; margin-bottom:4px; text-transform:uppercase; font-size:0.8rem;">${type}</div><div>${message}</div>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        async function connectWallet() {
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    showToast('Please install MetaMask!', 'error');
+                    return;
+                }
+
+                provider = new ethers.BrowserProvider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = await provider.getSigner();
+                userAccount = await signer.getAddress();
+
+                const network = await provider.getNetwork();
+
+                document.getElementById('user-address').innerText = userAccount;
+                document.getElementById('network-name').innerText = network.name + ' (Chain ID: ' + network.chainId + ')';
+                document.getElementById('wallet-info').classList.remove('hidden');
+                document.getElementById('wallet-status').classList.add('hidden');
+
+                showToast('Wallet connected successfully!', 'success');
+
+                // Load contract and BID status
+                await loadContractInfo();
+                await loadBIDStatus();
+
+            } catch (error) {
+                console.error(error);
+                showToast('Failed to connect wallet: ' + error.message, 'error');
+            }
+        }
+
+        async function loadContractInfo() {
+            try {
+                const response = await fetch('./contract-info.json');
+                const info = await response.json();
+                contractAddress = info.contractAddress;
+                contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
+            } catch (error) {
+                showToast('Could not load contract info. Please enter contract address manually.', 'warning');
+            }
+        }
+
+        async function loadBIDStatus() {
+            if (!contract || !userAccount) return;
+
+            try {
+                const isValid = await contract.isBIDValid(userAccount);
+                const statusCard = document.getElementById('bid-status-card');
+                const statusContent = document.getElementById('bid-status-content');
+
+                statusCard.classList.remove('hidden');
+
+                if (isValid) {
+                    const bidData = await contract.getBID(userAccount);
+                    const timestamp = new Date(Number(bidData.timestamp) * 1000);
+
+                    statusContent.innerHTML = `
+                        <div class="status-badge verified">✓ Verified</div>
+                        <div class="info-grid">
+                            <div class="info-label">Issuer:</div>
+                            <div class="info-value">${bidData.issuer}</div>
+                            <div class="info-label">Issued:</div>
+                            <div class="info-value">${timestamp.toLocaleDateString()} at ${timestamp.toLocaleTimeString()}</div>
+                            <div class="info-label">Status:</div>
+                            <div class="info-value" style="color: var(--success);">Active</div>
+                        </div>
+                    `;
+
+                    // Show QR and ZKP cards
+                    document.getElementById('qr-card').classList.remove('hidden');
+                    document.getElementById('zkp-card').classList.remove('hidden');
+                } else {
+                    // Check if BID exists but is revoked
+                    try {
+                        const bidData = await contract.getBID(userAccount);
+                        const revokeTime = bidData.revocationTimestamp > 0 ? new Date(Number(bidData.revocationTimestamp) * 1000) : null;
+
+                        statusContent.innerHTML = `
+                            <div class="status-badge revoked">⊘ Revoked</div>
+                            <div class="info-grid">
+                                <div class="info-label">Issuer:</div>
+                                <div class="info-value">${bidData.issuer}</div>
+                                <div class="info-label">Revoked:</div>
+                                <div class="info-value">${revokeTime ? revokeTime.toLocaleString() : 'Unknown'}</div>
+                                <div class="info-label">Status:</div>
+                                <div class="info-value" style="color: var(--error);">Inactive</div>
+                            </div>
+                            <p style="margin-top: 20px; color: var(--text-muted);">Contact your issuer to re-enable your identity.</p>
+                        `;
+                    } catch {
+                        statusContent.innerHTML = `
+                            <div class="status-badge revoked">⊘ Not Issued</div>
+                            <p style="color: var(--text-muted); margin-top: 10px;">You don't have a BID yet. Contact an authorized issuer to get one.</p>
+                        `;
+                    }
+                }
+
+            } catch (error) {
+                console.error(error);
+                showToast('Error loading BID status: ' + error.message, 'error');
+            }
+        }
+
+        function generateQRCode() {
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = ''; // Clear previous QR code
+
+            // Generate QR code with wallet address
+            new QRCode(qrContainer, {
+                text: userAccount,
+                width: 256,
+                height: 256,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('qrcode-container').classList.remove('hidden');
+            document.getElementById('download-btn').classList.remove('hidden');
+            showToast('QR Code generated successfully!', 'success');
+        }
+
+        function downloadQRCode() {
+            const canvas = document.querySelector('#qrcode canvas');
+            if (!canvas) {
+                showToast('Generate QR code first!', 'warning');
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.download = `BID_QR_${userAccount.substring(0, 10)}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+
+            showToast('QR Code downloaded!', 'success');
+        }
+
+        async function generateAgeProof() {
+            if (!contract || !userAccount) {
+                showToast('Please connect your wallet first!', 'error');
+                return;
+            }
+
+            const age = parseInt(document.getElementById('age-input').value);
+            const nonceHex = document.getElementById('nonce-input').value.trim();
+
+            if (!age || age < 1 || age > 150) {
+                showToast('Please enter a valid age!', 'error');
+                return;
+            }
+
+            if (!nonceHex || !nonceHex.startsWith('0x')) {
+                showToast('Please enter a valid nonce (0x...)!', 'error');
+                return;
+            }
+
+            try {
+                showToast('Generating proof and verifying on blockchain...', 'info');
+
+                // Call smart contract to verify
+                const tx = await contract.verifyIsAdult(userAccount, age, nonceHex);
+                const receipt = await tx.wait();
+
+                // Check the result
+                const isAdult = age >= 18;
+
+                const resultDiv = document.getElementById('age-proof-result');
+                resultDiv.classList.remove('hidden');
+
+                if (isAdult) {
+                    resultDiv.innerHTML = `
+                        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); padding: 20px; border-radius: 12px;">
+                            <h4 style="color: var(--success); margin-bottom: 10px;">✓ Age Proof Verified!</h4>
+                            <p style="color: var(--text-muted);">You have successfully proven you are 18 or older without revealing your exact age.</p>
+                            <p style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted);">Transaction: ${receipt.hash}</p>
+                        </div>
+                    `;
+                    showToast('Age proof verified successfully!', 'success');
+                } else {
+                    resultDiv.innerHTML = `
+                        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error); padding: 20px; border-radius: 12px;">
+                            <h4 style="color: var(--error); margin-bottom: 10px;">⊘ Under 18</h4>
+                            <p style="color: var(--text-muted);">The proof shows you are under 18.</p>
+                        </div>
+                    `;
+                    showToast('Proof generated: Under 18', 'info');
+                }
+
+            } catch (error) {
+                console.error(error);
+
+                if (error.message.includes('Invalid age proof')) {
+                    showToast('Invalid proof! Make sure your age and nonce match the values used during registration.', 'error');
+                } else {
+                    showToast('Error generating proof: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // Auto-load if wallet already connected
+        window.addEventListener('load', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                if (accounts.length > 0) {
+                    connectWallet();
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
